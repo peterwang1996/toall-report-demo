@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="/lib/vant.min.css">
+    <style>
+        * {
+            -moz-user-select: none;
+            -o-user-select: none;
+            -khtml-user-select: none;
+            -webkit-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+
+        .steps {
+            padding: 48px 56px;
+            margin: 0 auto;
+            display: block;
+            max-width: 720px;
+        }
+
+        .warn {
+            color: #f00;
+        }
+
+        .indicator {
+            height: 48px;
+            width: 100%;
+            overflow: hidden;
+            display: flex;
+        }
+
+        .indicator .single-project {
+            display: flex;
+            height: 48px;
+        }
+
+        .indicator .single-project.free {
+            background-color: #aaa;
+        }
+
+        .van-checkbox {
+            margin: 24px auto;
+        }
+
+        .project-name {
+            display: flex;
+            flex-direction: row;
+        }
+
+        .project-name .name {
+            display: inline-flex;
+            line-height: 24px;
+            margin-left: 8px;
+            max-width: calc(100% - 88px);
+        }
+
+        .project-name .percent-text {
+            display: flex;
+            height: 24px;
+            line-height: 24px;
+            margin-left: auto;
+            color: #888;
+        }
+
+        .color-index {
+            width: 24px;
+            height: 24px;
+            display: inline-flex;
+        }
+
+        .project-percent {
+            margin-top: 48px;
+            display: block;
+        }
+
+        .project-percent .van-slider {
+            margin-top: 24px;
+            width: 100%;
+        }
+
+        .van-button--primary {
+            margin-top: 64px;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="app">
+        <div id="step-already" class="steps" v-if="step === -1">
+            <h2>好耶！你所有的日报都填完了</h2>
+            <p>请直接退出本页面</p>
+        </div>
+
+        <div id="step-one" class="steps" v-if="step === 0">
+            <h2>选择你{{isToday ? '今天' : date}}参与的项目</h2>
+            <van-checkbox
+                v-for="(project, index) in projects"
+                :key="project.id" v-model="project.selected">
+                {{ project.name }}
+            </van-checkbox>
+            <van-button type="primary" block @click="++step & projects.forEach(a => a.percent = 0)">下一步</van-button>
+        </div>
+
+        <div id="step-two" class="steps" v-if="step === 1">
+            <h2 @click="step--">录入{{isToday ? '今天' : date}}参与项目所占时长</h2>
+            <div class="indicator">
+                <div v-for="(project, index) in projects.filter(a => a.selected)" class="single-project"
+                    :style="{backgroundColor: selcolor[index], width: project.percent + '%'}">
+                </div>
+                <div class="single-project free"
+                    :style="{backgroundColor: '#aaa', width: (100 - selectedSum > 0 ? 100 - selectedSum : 0) + '%'}">
+                </div>
+            </div>
+            <div v-for="(project, index) in projects.filter(a => a.selected)" class="project-percent">
+                <div class="project-name">
+                    <div class="color-index" :style="{backgroundColor: selcolor[index]}"></div>
+                    <span class="name">{{ project.name }}</span>
+                    <span class="percent-text">{{ project.percent }}%</span>
+                </div>
+                <van-slider v-model="project.percent" :min="0" :max="100" :step="5" @change="slideChange(project)" />
+            </div>
+            <div class="project-percent">
+                <div class="project-name">
+                    <div class="color-index" :style="{backgroundColor: '#aaa'}"></div>
+                    <span class="name">空闲</span>
+                    <span class="percent-text">{{ 100 - selectedSum > 0 ? 100 - selectedSum : 0 }}%</span>
+                </div>
+            </div>
+            <van-button type="primary" block @click="dataSubmit()" :disabled="selectedSum > 100">
+                完成
+            </van-button>
+        </div>
+
+        <div id="step-three" class="steps" v-if="step === 2">
+            <h2>{{isToday ? '今天' : date}}的日报已填写完成</h2>
+            <p v-if="!lastMissedDate">你没有漏填的日报了，请直接退出本页面</p>
+            <van-button v-if="lastMissedDate" type="primary" block @click="goToPage(`/index.html`)" :disabled="selectedSum > 100">
+                补填 {{lastMissedDate}} 的日报
+            </van-button>
+        </div>
+    </div>
+    <script src="/lib/vue.js"></script>
+    <script src="/lib/vant.js"></script>
+    <script src="/lib/touch-emulator.js"></script>
+    <script src="/lib/axios.min.js"></script>
+    <script>
+        // API Mock 链接：https://www.apipark.cn/s/b1282b30-bacb-4a76-934a-ab67555fc976 访问密码：e9avGV7G
+
+        const API_ROOT = 'http://127.0.0.1:4523/mock/511370'
+        
+        new Vue({
+            el: '#app',
+            data: {
+                date: '1970-01-01',
+                isToday: true,
+                selcolor: ['#6F44B0', '#6CC6DF', '#911999', '#02E240', '#CF9440', '#94AD6D', '#53D72C', '#5AC9E1', '#F445FB', '#3C0F42'],
+                projects: [
+                    {
+                        id: 0,
+                        name: '项目A',
+                        selected: false,
+                        percent: 0
+                    },
+                    {
+                        id: 1,
+                        name: '项目B',
+                        selected: false,
+                        percent: 0
+                    },
+                    {
+                        id: 2,
+                        name: '项目C',
+                        selected: false,
+                        percent: 0
+                    },
+                    {
+                        id: 3,
+                        name: '项目D',
+                        selected: false,
+                        percent: 0
+                    },
+                ],
+                step: 0,
+                lastMissedDate: null
+            },
+            computed: {
+                selectedSum() {
+                    return this.projects.filter(a => a.selected).reduce((prev, cur) => prev + cur.percent, 0)
+                }
+            },
+            methods: {
+                slideChange(project) {
+                    while (this.selectedSum > 100) {
+                        project.percent -= 5
+                    }
+                },
+                dataSubmit() {
+                    let submittingToast = this.$toast.loading({
+                        message: '提交中…',
+                        forbidClick: true,
+                        duration: 0,
+                        overlay: true
+                    })
+                    setTimeout(() => {
+                        submittingToast.clear()
+                        this.step++
+                    }, 1000);
+
+                    // 数据提交（客户端提交投入项目及其占时间的列表）
+                    // axios.post(`${API_ROOT}/submit`, {
+                    //     date: this.date,
+                    //     projects: this.projects
+                    //         .filter(a => a.selected && a.percent > 0)
+                    //         .map(a => ({
+                    //             id: a.id,
+                    //             percent: a.percent
+                    //         }))
+                    // }).then(res => {
+                    //     submittingToast.clear()
+                    //     this.step++
+                    // }).catch(error => {
+                    //     this.$toast.fail({
+                    //         message: "提交失败\n请关闭后重试\n" + error.message,
+                    //         forbidClick: true,
+                    //         duration: 0,
+                    //         overlay: true
+                    //     })
+                    // })
+                },
+                goToPage (url) {
+                    window.location.href = url
+                }
+            },
+            mounted() {
+                let loadingToast = this.$toast.loading({
+                    message: '加载中…',
+                    forbidClick: true,
+                    duration: 0,
+                    overlay: true
+                })
+
+                setTimeout(() => {
+                    loadingToast.clear()
+                }, 1000);
+
+                // 数据传入（客户端获取最近一天未填日报的日期，及当天用户所参与的项目）
+                // axios.post(`${API_ROOT}/get-sheet`).then(response => {
+                //     this.lastMissedDate = response.data.lastMissedDate
+                //     if (!response.data) {
+                //         this.step = -1
+                //     } else {
+                //         this.date = response.data.date
+                //         if (response.data.nextMissedDate) {
+                //             this.lastMissedDate = response.data.nextMissedDate
+                //         }
+                //         if (!response.data.isToday) {
+                //             this.isToday = false
+                //         }
+                //         if (response.data.projects) {
+                //         for (i = 0; i < response.data.projects.length; i++) {
+                //                 this.projects.push({
+                //                     id: response.data.projects[i].id,
+                //                     name: response.data.projects[i].name,
+                //                     selected: false,
+                //                     percent: 0
+                //                 })
+                //             }
+                //         }
+                //     }
+                //     loadingToast.clear()
+                // }).catch(error => {
+                //     loadingToast.clear()
+                //     this.$toast.fail({
+                //         message: "加载失败\n请关闭后重试\n" + error.message,
+                //         forbidClick: true,
+                //         duration: 0,
+                //         overlay: true
+                //     })
+                // })
+            }
+        })
+    </script>
+</body>
+
+</html>
