@@ -17,6 +17,10 @@
             user-select: none;
         }
 
+        #app {
+            width: 100%;
+        }
+
         .steps {
             padding: 48px 56px;
             margin: 0 auto;
@@ -24,24 +28,31 @@
             max-width: 720px;
         }
 
+        .steps h2 {
+            font-size: 24px;
+            margin-bottom: 32px;
+            color: #555;
+        }
+
         .warn {
             color: #f00;
         }
 
         .indicator {
-            height: 48px;
+            height: 64px;
             width: 100%;
             overflow: hidden;
             display: flex;
+            border-radius: 32px;
         }
 
         .indicator .single-project {
             display: flex;
-            height: 48px;
+            height: 64px;
         }
 
         .indicator .single-project.free {
-            background-color: #aaa;
+            background-color: #ddd;
         }
 
         .van-checkbox {
